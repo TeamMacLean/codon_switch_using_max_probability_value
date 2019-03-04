@@ -138,6 +138,19 @@ translate_table={
                     "UAC":"Y",
                     "UAU":"Y",
 					}
+ambiguous_bases={
+                "R":['A','G'],
+                "Y":['C','T'],
+                "S":['G','C'],
+                "W":['A','T'],
+                "K":['G','T'],
+                "M":['A','C'],
+                "B":['C','G','T'],
+                "D":['A','G','T'],
+                "H":['A','C','T'],
+                "V":['A','C','G'],
+                "N":['A','C','G','T'],
+				}
 
 def get_amino_acid_for_codon(codon):
 	return translate_table[codon]
@@ -147,10 +160,13 @@ def get_nucleotide_seq_with_maxvalue(ntseq):
 	dnaseq, protseq = ("", "")
 	for baseposition in range(0, len(ntseq), 3):
 		codon = ntseq[baseposition:baseposition + 3]
-		print("codon ", codon)
-		aa_codon, nucl_codon, max_value = get_max_codon_value_for_aminoacid(codon)
-		dnaseq+=nucl_codon
-		protseq+=aa_codon
+		#print("codon ", codon)
+		if len(codon) < 3:
+			dnaseq+=codon
+		else:
+			aa_codon, nucl_codon, max_value = get_max_codon_value_for_aminoacid(codon)
+			dnaseq+=nucl_codon
+			protseq+=aa_codon
 
 	return dnaseq
 
@@ -169,6 +185,9 @@ def get_nucleotide_seq_with_introns_with_maxvalue(ntseq, intron_positions):
 		#print("exonseq ", exonseq, len(exonseq))
 		for baseposition in range(0, len(exonseq), 3):
 			codon = exonseq[baseposition:baseposition + 3]
+			if len(codon) < 3:
+				dnaseq += codon
+				continue
 			aa_codon, nucl_codon, max_value = get_max_codon_value_for_aminoacid(codon)
 			dnaseq+=nucl_codon
 
@@ -183,6 +202,9 @@ def get_nucleotide_seq_with_introns_with_maxvalue(ntseq, intron_positions):
 	#print("exonseq ", exonseq)
 	for baseposition in range(0, len(exonseq), 3):
 		codon=exonseq[baseposition:baseposition +3]
+		if len(codon) < 3:
+			dnaseq += codon
+			continue
 		aa_codon, nucl_codon, max_value = get_max_codon_value_for_aminoacid(codon)
 		dnaseq+=nucl_codon
 
@@ -192,6 +214,10 @@ def get_nucleotide_seq_with_introns_with_maxvalue(ntseq, intron_positions):
 
 
 def get_max_codon_value_for_aminoacid(codon):
+
+	for base in codon:
+		if base in ambiguous_bases.keys():
+			codon.replace(base, ambiguous_bases[base][0])
 
 	aminoacid = get_amino_acid_for_codon(codon)
 
@@ -275,7 +301,9 @@ for key in nucleotide_codon_values.keys():
 for record in SeqIO.parse(dna_sequence, 'fasta'):
 	seqid=record.description
 	ntseq=str(record.seq)
-	if "dna" in record.description.lower() or "scaffold" in record.description.lower() or "contig" in record.description.lower():
+	if "cdna" in record.description.lower():
+		dnaseq = get_nucleotide_seq_with_maxvalue(ntseq)
+	elif "dna" in record.description.lower() or "scaffold" in record.description.lower() or "contig" in record.description.lower():
 		if intron_positions==False:
 			continue
 		else:
