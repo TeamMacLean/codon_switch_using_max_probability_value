@@ -154,32 +154,41 @@ def get_nucleotide_seq_with_maxvalue(ntseq):
 
 	return dnaseq
 
+
 def get_nucleotide_seq_with_introns_with_maxvalue(ntseq, intron_positions):
 
-	dnaseq= ""
-	intron_started = False
-	for baseposition in range(0, len(ntseq), 3):
-		print("basepositions ", baseposition)
-		codon = ntseq[baseposition:baseposition + 3]
-		print("codon " , codon)
-		if len(intron_positions) > 0 and baseposition+1 >= intron_positions[0][0] and baseposition+1 < intron_positions[0][1]:
-			intron_started = True
-			print("intron started")
-		else:
-			intron_started = False
+	dnaseq=""
+	counter=0
+	total_introns=len(intron_positions)
+	exonstart = 0
+	while counter < total_introns:
+		given_intron = intron_positions[counter]
+		intronstart = given_intron[0]
 
-
-		if intron_started == False:
+		exonseq = ntseq[exonstart:intronstart-1]
+		#print("exonseq ", exonseq, len(exonseq))
+		for baseposition in range(0, len(exonseq), 3):
+			codon = exonseq[baseposition:baseposition + 3]
 			aa_codon, nucl_codon, max_value = get_max_codon_value_for_aminoacid(codon)
 			dnaseq+=nucl_codon
-		else:
-			dnaseq+=codon
 
-			intron_positions.pop(0)
-			print("Intron ended ", intron_positions)
-			intron_started = False
+
+		intronseq= ntseq[given_intron[0]-1:given_intron[1] ]
+		#print("add intron seq ", intronseq, len(intronseq))
+		dnaseq += intronseq
+		exonstart = given_intron[1]
+		counter+=1
+
+	exonseq=ntseq[exonstart:]
+	#print("exonseq ", exonseq)
+	for baseposition in range(0, len(exonseq), 3):
+		codon=exonseq[baseposition:baseposition +3]
+		aa_codon, nucl_codon, max_value = get_max_codon_value_for_aminoacid(codon)
+		dnaseq+=nucl_codon
+
 
 	return dnaseq
+
 
 
 def get_max_codon_value_for_aminoacid(codon):
@@ -189,7 +198,7 @@ def get_max_codon_value_for_aminoacid(codon):
 	# get the codon probability values
 
 	aa_values = aa_codon_values[aminoacid]
-	print("aa values ", aa_values)
+	#print("aa values ", aa_values)
 	max_value=0
 	for key in aa_values.keys():
 		if aa_values[key] > max_value:
@@ -229,7 +238,7 @@ if len(sys.argv) == 4:
 	intron_positions=sys.argv[3]
 	introns_provided=True
 	introns = get_intron_positions(intron_positions)
-	print("introns positions ", introns)
+	#print("introns positions ", introns)
 
 else:
 	intron_positions = False
@@ -249,7 +258,7 @@ for line in codon_table_fh:
 	nucleotide_codon_values[codon] = value
 codon_table_fh.close()
 
-print("nucleotide codon values ", nucleotide_codon_values)
+#print("nucleotide codon values ", nucleotide_codon_values)
 # get nucleotide_codon_values
 aa_codon_values={}
 for key in nucleotide_codon_values.keys():
@@ -259,7 +268,7 @@ for key in nucleotide_codon_values.keys():
 	else:
 		aa_codon_values[aa]={key:nucleotide_codon_values[key]}
 
-print("amino acid values ", aa_codon_values)
+#print("amino acid values ", aa_codon_values)
 
 
 
@@ -267,8 +276,11 @@ for record in SeqIO.parse(dna_sequence, 'fasta'):
 	seqid=record.description
 	ntseq=str(record.seq)
 	if "dna" in record.description.lower() or "scaffold" in record.description.lower() or "contig" in record.description.lower():
-		dnaseq = get_nucleotide_seq_with_introns_with_maxvalue(ntseq, introns[record.id])
+		if intron_positions==False:
+			continue
+		else:
+			dnaseq = get_nucleotide_seq_with_introns_with_maxvalue(ntseq, introns[record.id])
 	else:
 		dnaseq = get_nucleotide_seq_with_maxvalue(ntseq)
-
+	print(">" + seqid)
 	print(dnaseq)
